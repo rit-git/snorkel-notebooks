@@ -24,9 +24,9 @@ def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True
         df = df.sample(frac=1, random_state=123).reset_index(drop=True)
         dfs.append(df)
 
-    df_train = pd.concat(dfs[:4]).sample(800, random_state=123)
+    df_train = pd.concat(dfs[:4])
     if split_dev:
-        df_dev = df_train.sample(100, random_state=123)
+        df_dev = df_train.sample(500, random_state=123)
 
     if not load_train_labels:
         df_train["label"] = np.ones(len(df_train["label"])) * -1
@@ -58,7 +58,7 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
 
     df_train = dfs[1]
     if split_dev:
-        df_dev = df_train.sample(100, random_state=123)
+        df_dev = df_train.sample(500, random_state=123)
 
     if not load_train_labels:
         df_train["label"] = np.ones(len(df_train["label"])) * -1
@@ -66,6 +66,9 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
     df_valid, df_test = train_test_split(
         df_valid_test, test_size=250, random_state=123, stratify=df_valid_test.label
     )
+
+    # sample from training set to keep to a reasonable size
+    df_train = df_train.sample(5000, random_state=123)
 
     if split_dev:
         return df_train, df_dev, df_valid, df_test
