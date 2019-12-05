@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 
-def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None):
+def load_youtube_dataset(load_train_labels: bool = True, split_dev: bool = True, delimiter: str=None):
     filenames = sorted(glob.glob("data/Youtube*.csv"))
 
     dfs = []
