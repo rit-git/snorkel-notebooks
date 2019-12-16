@@ -41,7 +41,7 @@ def load_youtube_dataset(load_train_labels: bool = True, split_dev: bool = True,
         return df_train, df_valid, df_test
 
 
-def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None):
+def load_amazon_dataset(load_train_labels: bool = True, split_dev: bool = True, delimiter: str=None):
     filenames = sorted(glob.glob("data/Amazon*.csv"))
 
     dfs = []
@@ -68,7 +68,38 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
     )
 
     # sample from training set to keep to a reasonable size
-    df_train = df_train.sample(5000, random_state=123)
+    df_train = df_train.sample(2500, random_state=123)
+
+    if split_dev:
+        return df_train, df_dev, df_valid, df_test
+    else:
+        return df_train, df_valid, df_test
+
+
+def load_film_dataset(load_train_labels: bool = True, split_dev: bool = True, delimiter: str=None):
+    filename = "data/wiki_movie_plots.csv"
+    df = pd.read_csv(filename)
+    df = df[["text", "label", "Genre", "Title"]]
+
+    # Remove delimiter chars
+    if delimiter:
+        df['text'].replace(regex=True, inplace=True, to_replace=delimiter, value=r'')
+    # Shuffle order
+    df = df.sample(frac=1, random_state=123).reset_index(drop=True)
+
+    test_size = 1000
+    valid_size = 500
+    if split_dev:
+        dev_size = 500
+    else:
+        dev_size = 0
+
+    df_test = df[:test_size]
+    df_valid = df[test_size:test_size+valid_size]
+    df_dev = df[test_size+valid_size:test_size+valid_size+dev_size]
+    df_train = df[test_size+valid_size+dev_size:]
+    if not load_train_labels:
+        df_train["label"] = np.ones(len(df_train["label"])) * -1
 
     if split_dev:
         return df_train, df_dev, df_valid, df_test

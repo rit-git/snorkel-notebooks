@@ -6,6 +6,7 @@ class Candidate:
         self.__dict__.update(df_row.to_dict())
         self.tokens = word_tokenize(self.text)
         self.doc_id = df_row.id
+        self.mention_id = df_row.id
 
     def __repr__(self):
         return str(vars(self))
