@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 
-def load_youtube_dataset(load_train_labels: bool = True, split_dev: bool = True, delimiter: str=None):
+def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None):
     filenames = sorted(glob.glob("data/Youtube*.csv"))
 
     dfs = []
@@ -29,7 +29,7 @@ def load_youtube_dataset(load_train_labels: bool = True, split_dev: bool = True,
         df_dev = df_train.sample(500, random_state=123)
 
     if not load_train_labels:
-        df_train["label"] = np.ones(len(df_train["label"])) * -1
+        df_train = df_train.drop("label", axis=1)
     df_valid_test = dfs[4]
     df_valid, df_test = train_test_split(
         df_valid_test, test_size=250, random_state=123, stratify=df_valid_test.label
@@ -41,7 +41,7 @@ def load_youtube_dataset(load_train_labels: bool = True, split_dev: bool = True,
         return df_train, df_valid, df_test
 
 
-def load_amazon_dataset(load_train_labels: bool = True, split_dev: bool = True, delimiter: str=None):
+def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None):
     filenames = sorted(glob.glob("data/Amazon*.csv"))
 
     dfs = []
@@ -61,7 +61,7 @@ def load_amazon_dataset(load_train_labels: bool = True, split_dev: bool = True, 
         df_dev = df_train.sample(500, random_state=123)
 
     if not load_train_labels:
-        df_train["label"] = np.ones(len(df_train["label"])) * -1
+        df_train = df_train.drop("label", axis=1)
     df_valid_test = dfs[0]
     df_valid, df_test = train_test_split(
         df_valid_test, test_size=250, random_state=123, stratify=df_valid_test.label
@@ -76,7 +76,7 @@ def load_amazon_dataset(load_train_labels: bool = True, split_dev: bool = True, 
         return df_train, df_valid, df_test
 
 
-def load_film_dataset(load_train_labels: bool = True, split_dev: bool = True, delimiter: str=None):
+def load_film_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None):
     filename = "data/wiki_movie_plots.csv"
     df = pd.read_csv(filename)
     df = df[["text", "label", "Genre", "Title"]]
@@ -99,7 +99,7 @@ def load_film_dataset(load_train_labels: bool = True, split_dev: bool = True, de
     df_dev = df[test_size+valid_size:test_size+valid_size+dev_size]
     df_train = df[test_size+valid_size+dev_size:]
     if not load_train_labels:
-        df_train["label"] = np.ones(len(df_train["label"])) * -1
+        df_train = df_train.drop("label", axis=1)
 
     if split_dev:
         return df_train, df_dev, df_valid, df_test
