@@ -20,21 +20,24 @@ def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True
         df = df.rename(columns={"class": "label", "content": "text"})
         # Remove delimiter chars
         df['text'].replace(regex=True, inplace=True, to_replace=delimiter, value=r'')
-        # Shuffle order
-        df = df.sample(frac=1, random_state=123).reset_index(drop=True)
+        df = df.reset_index(drop=True)
         dfs.append(df)
-
-    df_train = pd.concat(dfs[:4]).sample(800, random_state=123)
-    if split_dev:
-        df_dev = df_train.sample(100, random_state=123)
-
+    
+    # concatenate DFs, shuffle order
+    df_full = pd.concat(dfs).sample(frac=1, random_state=123)
+    train_size, dev_size, valid_size, test_size = 1000, 250, 200, 500
+    assert(test_size+valid_size+dev_size+train_size <= len(df_full))
+    if not split_dev:
+        dev_size = 0
+        
+    df_test = df_full[:test_size]
+    df_valid = df_full[test_size:test_size+valid_size]
+    df_dev = df_full[test_size+valid_size:test_size+valid_size+dev_size]
+    df_train = df_full[test_size+valid_size+dev_size:test_size+valid_size+dev_size+train_size]
     if not load_train_labels:
-        df_train["label"] = np.ones(len(df_train["label"])) * -1
-    df_valid_test = dfs[4]
-    df_valid, df_test = train_test_split(
-        df_valid_test, test_size=250, random_state=123, stratify=df_valid_test.label
-    )
+        df_train.drop("label", axis=1, inplace=True)
 
+    assert(len(df_train) > 0)
     if split_dev:
         return df_train, df_dev, df_valid, df_test
     else:
@@ -42,7 +45,7 @@ def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True
 
 
 def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None):
-    filenames = sorted(glob.glob("data/Amazon*.csv"))
+    filenames = sorted(glob.glob("data/Amazon*Dev.csv"))
 
     dfs = []
     for i, filename in enumerate(filenames, start=1):
@@ -52,26 +55,30 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
         # Remove delimiter chars
         if delimiter:
             df['text'].replace(regex=True, inplace=True, to_replace=delimiter, value=r'')
-        # Shuffle order
-        df = df.sample(frac=1, random_state=123).reset_index(drop=True)
+        df = df.reset_index(drop=True)
         dfs.append(df)
+    # concatenate DFs, shuffle order
+    df_full = pd.concat(dfs).sample(frac=1, random_state=123)
+    train_size, dev_size, valid_size, test_size = 2000, 500, 500, 1000
+    assert(test_size+valid_size+dev_size+train_size <= len(df_full))
+    
+    if not split_dev:
+        dev_size = 0
 
-    df_train = dfs[1].sample(10000)
-    if split_dev:
-        df_dev = df_train.sample(100, random_state=123)
-
+    df_test = df_full[:test_size]
+    df_valid = df_full[test_size:test_size+valid_size]
+    df_dev = df_full[test_size+valid_size:test_size+valid_size+dev_size]
+    df_train = df_full[test_size+valid_size+dev_size:test_size+valid_size+dev_size+train_size]
     if not load_train_labels:
-        df_train["label"] = np.ones(len(df_train["label"])) * -1
-    df_valid_test = dfs[0].sample(1000)
-    df_valid, df_test = train_test_split(
-        df_valid_test, test_size=250, random_state=123, stratify=df_valid_test.label
-    )
+
+        df_train.drop("label", axis=1, inplace=True)
+    
+    assert(len(df_train) > 0)
 
     if split_dev:
         return df_train, df_dev, df_valid, df_test
     else:
         return df_train, df_valid, df_test
-
 
 
 def load_film_dataset(load_train_labels: bool = True, split_dev: bool = True, delimiter: str=None):
@@ -91,13 +98,14 @@ def load_film_dataset(load_train_labels: bool = True, split_dev: bool = True, de
         dev_size = 500
     else:
         dev_size = 0
+    train_size = 1500
 
     df_test = df[:test_size]
     df_valid = df[test_size:test_size+valid_size]
     df_dev = df[test_size+valid_size:test_size+valid_size+dev_size]
-    df_train = df[test_size+valid_size+dev_size:]
+    df_train = df[test_size+valid_size+dev_size:test_size+valid_size+dev_size+train_size]
     if not load_train_labels:
-        df_train["label"] = np.ones(len(df_train["label"])) * -1
+        df_train.drop("label", axis=1, inplace=True)
 
     if split_dev:
         return df_train, df_dev, df_valid, df_test
