@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 
 
 def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None):
-    filenames = sorted(glob.glob("data/Youtube*.csv"))
+    filenames = sorted(glob.glob("../data/Youtube*.csv"))
 
     dfs = []
     for i, filename in enumerate(filenames, start=1):
@@ -45,7 +45,7 @@ def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True
 
 
 def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None):
-    filenames = sorted(glob.glob("data/Amazon*Dev.csv"))
+    filenames = sorted(glob.glob("../data/Amazon*Dev.csv"))
 
     dfs = []
     for i, filename in enumerate(filenames, start=1):
@@ -82,7 +82,7 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
 
 
 def load_film_dataset(load_train_labels: bool = True, split_dev: bool = True, delimiter: str=None):
-    filename = "data/wiki_movie_plots.csv"
+    filename = "../data/wiki_movie_plots.csv"
     df = pd.read_csv(filename)
     df = df[["text", "label", "Genre", "Title"]]
 
