@@ -1,0 +1,10 @@
+data/Y*
+data/A*
+.ipynb*
+venv/*
+*.pkl
+*.csv
+*.txt
+*.tsv
+*.pyc
+
