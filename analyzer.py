@@ -46,7 +46,6 @@ def train_model(label_model, df_train, df_valid, df_test, L_train):
     X_valid = vectorizer.transform(df_valid.text.tolist())
     X_test = vectorizer.transform(df_test.text.tolist())
 
-    Y_train = df_train.label.values
     Y_valid = df_valid.label.values
     Y_test = df_test.label.values
 
