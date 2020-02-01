@@ -2,6 +2,7 @@ import pandas as pd
 import glob
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.datasets import fetch_20newsgroups
 
 
 def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None):
@@ -80,20 +81,48 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
     else:
         return df_train, df_valid, df_test
 
+def load_news_dataset(load_train_labels: bool = True, split_dev: bool = True):
+    newsgroups_train = fetch_20newsgroups(subset='train', categories=['talk.politics.guns', 'sci.electronics'], remove=('headers', 'footers', 'quotes'))
+    df = pd.DataFrame.from_dict({"text": newsgroups_train["data"], "filename": newsgroups_train["filenames"], "category": newsgroups_train["target"]})
+    df = df.sample(1100, random_state=123).reset_index(drop=True)
+    df = df[df["text"].apply(len) > 0]
+    df["label"] = df["category"] == 'talk.politics.guns'
+    test_size = 0
+    valid_size = 0
+    if split_dev:
+        dev_size = 500
+    else:
+        dev_size = 0
+    train_size = 600
+
+    df_test = df[:test_size]
+    df_valid = df[test_size:test_size+valid_size]
+    df_dev = df[test_size+valid_size:test_size+valid_size+dev_size]
+    df_train = df[test_size+valid_size+dev_size:test_size+valid_size+dev_size+train_size]
+    if not load_train_labels:
+        df_train.drop("label", axis=1, inplace=True)
+
+    if split_dev:
+        return df_train, df_dev, df_valid, df_test
+    else:
+        return df_train, df_valid, df_test
+
 
 def load_film_dataset(load_train_labels: bool = True, split_dev: bool = True, delimiter: str=None):
     filename = "../data/wiki_movie_plots.csv"
     df = pd.read_csv(filename)
     df = df[["text", "label", "Genre", "Title"]]
+    df = df[df["text"].apply(len) <= 500]
+    print(len(df))
 
     # Remove delimiter chars
     if delimiter:
         df['text'].replace(regex=True, inplace=True, to_replace=delimiter, value=r'')
     # Shuffle order
-    df = df.sample(3000, random_state=123).reset_index(drop=True)
+    df = df.sample(2000, random_state=123).reset_index(drop=True)
 
-    test_size = 500
-    valid_size = 500
+    test_size = 0
+    valid_size = 0
     if split_dev:
         dev_size = 500
     else:
