@@ -83,17 +83,17 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
 
 def load_news_dataset(load_train_labels: bool = True, split_dev: bool = True):
     newsgroups_train = fetch_20newsgroups(subset='train', categories=['talk.politics.guns', 'sci.electronics'], remove=('headers', 'footers', 'quotes'))
-    df = pd.DataFrame.from_dict({"text": newsgroups_train["data"], "filename": newsgroups_train["filenames"], "category": newsgroups_train["target"]})
+    df = pd.DataFrame.from_dict({"text": newsgroups_train["data"], "label": newsgroups_train["target"]})
     df = df.sample(1100, random_state=123).reset_index(drop=True)
     df = df[df["text"].apply(len) > 0]
-    df["label"] = df["category"] == 'talk.politics.guns'
-    test_size = 0
-    valid_size = 0
+
+    test_size = 100
+    valid_size = 100
     if split_dev:
-        dev_size = 500
+        dev_size = 400
     else:
         dev_size = 0
-    train_size = 600
+    train_size = 500
 
     df_test = df[:test_size]
     df_valid = df[test_size:test_size+valid_size]
