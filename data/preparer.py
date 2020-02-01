@@ -19,6 +19,7 @@ def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True
         df["video"] = [i] * len(df)
         # Rename fields
         df = df.rename(columns={"class": "label", "content": "text"})
+        df = df[["label", "text"]]
         # Remove delimiter chars
         df['text'].replace(regex=True, inplace=True, to_replace=delimiter, value=r'')
         df = df.reset_index(drop=True)
@@ -81,7 +82,7 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
     else:
         return df_train, df_valid, df_test
 
-def load_news_dataset(load_train_labels: bool = True, split_dev: bool = True):
+def load_news_dataset(load_train_labels: bool = False, split_dev: bool = True):
     newsgroups_train = fetch_20newsgroups(subset='train', categories=['talk.politics.guns', 'sci.electronics'], remove=('headers', 'footers', 'quotes'))
     df = pd.DataFrame.from_dict({"text": newsgroups_train["data"], "label": newsgroups_train["target"]})
     df = df.sample(1100, random_state=123).reset_index(drop=True)
@@ -108,7 +109,7 @@ def load_news_dataset(load_train_labels: bool = True, split_dev: bool = True):
         return df_train, df_valid, df_test
 
 
-def load_film_dataset(load_train_labels: bool = True, split_dev: bool = True, delimiter: str=None):
+def load_film_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None):
     filename = "../data/wiki_movie_plots.csv"
     df = pd.read_csv(filename)
     df = df[["text", "label", "Genre", "Title"]]
