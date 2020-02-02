@@ -39,15 +39,19 @@ def train_model(label_model, df_train, df_valid, df_test, L_train):
     df_train_filtered, probs_train_filtered = filter_unlabeled_dataframe(
         X=df_train, y=probs_train, L=L_train
     )
+    print("{} out of {} examples used for training data".format(len(df_train_filtered), len(df_train)))
 
+    train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df_test)
+
+def train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df_test):
     vectorizer = CountVectorizer(ngram_range=(1, 2))
     X_train = vectorizer.fit_transform(df_train_filtered.text.tolist())
 
-    X_valid = vectorizer.transform(df_valid.text.tolist())
-    X_test = vectorizer.transform(df_test.text.tolist())
+    X_valid = vectorizer.transform(df_valid["text"].tolist())
+    X_test = vectorizer.transform(df_test["text"].tolist())
 
-    Y_valid = df_valid.label.values
-    Y_test = df_test.label.values
+    Y_valid = df_valid["label"].values
+    Y_test = df_test["label"].values
 
     # Define a vanilla logistic regression model with Keras
     keras_model = get_keras_logreg(input_dim=X_train.shape[1])
