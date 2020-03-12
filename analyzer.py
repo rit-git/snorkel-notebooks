@@ -3,16 +3,61 @@ from snorkel.analysis import metric_score
 from snorkel.labeling import filter_unlabeled_dataframe
 from snorkel.utils import preds_to_probs
 import tensorflow as tf
+import numpy as np
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Embedding, LSTM, Bidirectional
 
 
-def get_keras_logreg(input_dim, output_dim=2):
-    model = tf.keras.Sequential()
+def set_seeds():
+    # set all random seeds
+    import tensorflow as tf
+    from numpy.random import seed as np_seed
+    from random import seed as py_seed
+    from snorkel.utils import set_seed as snork_seed
+    snork_seed(123)
+    tf.random.set_seed(123)
+    np_seed(123)
+    py_seed(123)
+
+
+def get_keras_bilstm(vocab_size = 20000, output_dim=2, maxlen=100):
+    set_seeds()
+    
+    # cut texts after this number of words
+    # (among top max_features most common words)
+
+    model = Sequential()
+    model.add(Embedding(maxlen, 128, input_length=maxlen))
+    model.add(Bidirectional(LSTM(64)))
+    model.add(Dropout(0.5))
     if output_dim == 1:
         loss = "binary_crossentropy"
         activation = tf.nn.sigmoid
     else:
         loss = "categorical_crossentropy"
-        activation = tf.nn.softmax
+        activation = tf.math.softmax
+    dense = tf.keras.layers.Dense(
+        units=output_dim,
+        activation=activation,
+        kernel_regularizer=tf.keras.regularizers.l2(0.001),
+    )
+    model.add(dense)
+    # try using different optimizers and different optimizer configs
+    model.compile('adam', 'binary_crossentropy', metrics=['accuracy'])
+    return model
+
+
+def get_keras_logreg(input_dim, output_dim=2):
+    set_seeds()
+
+    model = Sequential()
+    if output_dim == 1:
+        loss = "binary_crossentropy"
+        activation = tf.nn.sigmoid
+    else:
+        loss = "categorical_crossentropy"
+        activation = tf.math.softmax
     dense = tf.keras.layers.Dense(
         units=output_dim,
         input_dim=input_dim,
@@ -44,6 +89,8 @@ def train_model(label_model, df_train, df_valid, df_test, L_train):
     train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df_test)
 
 def train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df_test):
+    set_seeds()
+    
     vectorizer = CountVectorizer(ngram_range=(1, 2))
     X_train = vectorizer.fit_transform(df_train_filtered.text.tolist())
 
@@ -68,3 +115,8 @@ def train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df
     preds_test = keras_model.predict(x=X_test).argmax(axis=1)
     test_acc = metric_score(golds=Y_test, preds=preds_test, metric="accuracy")
     print(f"Test Accuracy: {test_acc * 100:.1f}%")
+    test_f1 = metric_score(golds=Y_test, preds=preds_test, metric="f1")
+    print(f"Test F1: {test_f1 * 100:.1f}%")
+
+
+
