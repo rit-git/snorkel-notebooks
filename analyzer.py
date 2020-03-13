@@ -126,7 +126,8 @@ def train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df
         "test_acc": test_acc, 
         "test_f1": test_f1, 
         "test_precision": test_prec, 
-        "test_recall": test_recall
+        "test_recall": test_recall,
+        "model": "logreg"
     }
 
 
