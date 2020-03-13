@@ -41,7 +41,7 @@ def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True
     df_test_test = df[test_size+valid_size+dev_size+train_size:2*test_size+valid_size+dev_size+train_size]
 
     if not load_train_labels:
-        df_train.drop("label", axis=1, inplace=True)
+        df_train = df_train.drop("label", axis=1)
 
     assert(len(df_train) > 0)
     if split_dev:
@@ -80,7 +80,7 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
 
     if not load_train_labels:
 
-        df_train.drop("label", axis=1, inplace=True)
+        df_train = df_train.drop("label", axis=1)
     
     assert(len(df_train) > 0)
 
@@ -111,7 +111,7 @@ def load_news_dataset(load_train_labels: bool = False, split_dev: bool = True, t
     df_test_test = df[test_size+valid_size+dev_size+train_size:]
 
     if not load_train_labels:
-        df_train.drop("label", axis=1, inplace=True)
+        df_train = df_train.drop("label", axis=1)
 
     if split_dev:
         return df_train, df_dev, df_valid, df_test, df_test_test
@@ -147,7 +147,7 @@ def load_film_dataset(load_train_labels: bool = False, split_dev: bool = True, t
 
     df_test_test = df[test_size+valid_size+dev_size+train_size:2*test_size+valid_size+dev_size+train_size]
     if not load_train_labels:
-        df_train.drop("label", axis=1, inplace=True)
+        df_train = df_train.drop("label", axis=1)
 
     if split_dev:
         return df_train, df_dev, df_valid, df_test, df_test_test
