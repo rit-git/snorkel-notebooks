@@ -86,7 +86,7 @@ def train_model(label_model, df_train, df_valid, df_test, L_train):
     )
     print("{} out of {} examples used for training data".format(len(df_train_filtered), len(df_train)))
 
-    train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df_test)
+    return train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df_test)
 
 def train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df_test):
     set_seeds()
@@ -117,6 +117,17 @@ def train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df
     print(f"Test Accuracy: {test_acc * 100:.1f}%")
     test_f1 = metric_score(golds=Y_test, preds=preds_test, metric="f1")
     print(f"Test F1: {test_f1 * 100:.1f}%")
+    test_prec = metric_score(golds=Y_test, preds=preds_test, metric="precision")
+    print(f"Test Precision: {test_f1 * 100:.1f}%")
+    test_recall = metric_score(golds=Y_test, preds=preds_test, metric="recall")
+    print(f"Test Recall: {test_f1 * 100:.1f}%")
+
+    return {
+        "test_acc": test_acc, 
+        "test_f1": test_f1, 
+        "test_precision": test_prec, 
+        "test_recall": test_recall
+    }
 
 
 
