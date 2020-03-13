@@ -6,6 +6,7 @@ venv/*
 *.csv
 *.txt
 *.tsv
+*.DS_Store
 *.pyc
 eser/*
 yuliang*
