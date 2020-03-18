@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.datasets import fetch_20newsgroups
 
 
-def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True, test_test: bool = False, delimiter: str=None):
+def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None, test_test: bool = False):
     filenames = sorted(glob.glob(dir_path + "/Youtube*.csv"))
 
     dfs = []
@@ -50,7 +50,7 @@ def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True
         return df_train, df_valid, df_test
 
 
-def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True, test_test: bool = False, delimiter: str=None):
+def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None, test_test: bool = False):
     filenames = sorted(glob.glob(dir_path + "/Amazon*Dev.csv"))
 
     dfs = []
@@ -119,7 +119,7 @@ def load_news_dataset(load_train_labels: bool = False, split_dev: bool = True, t
         return df_train, df_valid, df_test
 
 
-def load_film_dataset(load_train_labels: bool = False, split_dev: bool = True, test_test: bool = False, delimiter: str=None):
+def load_film_dataset(load_train_labels: bool = False, split_dev: bool = True, delimiter: str=None, test_test: bool = False):
     filename = dir_path + "/wiki_movie_plots.csv"
     df = pd.read_csv(filename)
     df = df[["text", "label", "Genre", "Title"]]
