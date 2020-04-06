@@ -23,7 +23,8 @@ def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True
         df = df.rename(columns={"class": "label", "content": "text"})
         df = df[["label", "text"]]
         # Remove delimiter chars
-        df['text'].replace(regex=True, inplace=True, to_replace=delimiter, value=r'')
+        if delimiter is not None:
+            df['text'].replace(regex=True, inplace=True, to_replace=delimiter, value=r'')
         df = df.reset_index(drop=True)
         dfs.append(df)
     
@@ -38,7 +39,16 @@ def load_youtube_dataset(load_train_labels: bool = False, split_dev: bool = True
     df_valid = df_full[test_size:test_size+valid_size]
     df_dev = df_full[test_size+valid_size:test_size+valid_size+dev_size]
     df_train = df_full[test_size+valid_size+dev_size:test_size+valid_size+dev_size+train_size]
-    df_test_test = df[test_size+valid_size+dev_size+train_size:2*test_size+valid_size+dev_size+train_size]
+
+    us_comments_df = pd.read_csv(dir_path + "/USComments.csv")
+    us_comments_df["text"] = us_comments_df["comment_text"]
+    # filter out unlabeled examples, groupby label
+    us_comments_df = us_comments_df[(us_comments_df['label']==0) | (us_comments_df['label']==1)]  
+    us_comments_df["label"] = us_comments_df["label"].astype(int)
+
+    g = us_comments_df.groupby('label')
+    # sample evenly from each class
+    df_test_test = pd.DataFrame(g.apply(lambda x: x.sample(g.size().min())))
 
     if not load_train_labels:
         df_train = df_train.drop("label", axis=1)
@@ -59,7 +69,7 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
         # Lowercase column names
         df.columns = ["key", "text", "label"]
         # Remove delimiter chars
-        if delimiter:
+        if delimiter is not None:
             df['text'].replace(regex=True, inplace=True, to_replace=delimiter, value=r'')
         df = df.reset_index(drop=True)
         dfs.append(df)
@@ -79,7 +89,6 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
     df_test_test = df[test_size+valid_size+dev_size+train_size:2*test_size+valid_size+dev_size+train_size]
 
     if not load_train_labels:
-
         df_train = df_train.drop("label", axis=1)
     
     assert(len(df_train) > 0)
@@ -91,8 +100,8 @@ def load_amazon_dataset(load_train_labels: bool = False, split_dev: bool = True,
 
 def load_news_dataset(load_train_labels: bool = False, split_dev: bool = True, test_test: bool = False):
     newsgroups_train = fetch_20newsgroups(subset='train', categories=['talk.politics.guns', 'sci.electronics'], remove=('headers', 'footers', 'quotes'))
-    df = pd.DataFrame.from_dict({"text": newsgroups_train["data"], "label": newsgroups_train["target"]})
-    df = df.sample(1100, random_state=123).reset_index(drop=True)
+    whole_df = pd.DataFrame.from_dict({"text": newsgroups_train["data"], "label": newsgroups_train["target"]})
+    df = whole_df.sample(1100, random_state=123).reset_index(drop=True)
     df = df[df["text"].apply(len) > 0]
 
     test_size = 100
@@ -108,7 +117,7 @@ def load_news_dataset(load_train_labels: bool = False, split_dev: bool = True, t
     df_dev = df[test_size+valid_size:test_size+valid_size+dev_size]
     df_train = df[test_size+valid_size+dev_size:test_size+valid_size+dev_size+train_size]
 
-    df_test_test = df[test_size+valid_size+dev_size+train_size:]
+    df_test_test = whole_df[~whole_df.index.isin(df.index)]
 
     if not load_train_labels:
         df_train = df_train.drop("label", axis=1)
@@ -124,10 +133,9 @@ def load_film_dataset(load_train_labels: bool = False, split_dev: bool = True, d
     df = pd.read_csv(filename)
     df = df[["text", "label", "Genre", "Title"]]
     df = df[df["text"].apply(len) <= 500]
-    print(len(df))
 
     # Remove delimiter chars
-    if delimiter:
+    if delimiter is not None:
         df['text'].replace(regex=True, inplace=True, to_replace=delimiter, value=r'')
     # Shuffle order
     df = df.sample(2000, random_state=123).reset_index(drop=True)
