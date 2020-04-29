@@ -5,6 +5,9 @@ from snorkel.utils import preds_to_probs
 import tensorflow as tf
 import numpy as np
 
+from google.oauth2 import service_account
+from googleapiclient import discovery
+
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, Embedding, LSTM, Bidirectional
 
@@ -130,5 +133,27 @@ def train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df
         "model": "logreg"
     }
 
+def upload_data(zipfile, name=""):
+    GOOGLE_APPLICATION_CREDENTIALS="../data/credentials.json"
+    creds = credentials = service_account.Credentials.from_service_account_file(GOOGLE_APPLICATION_CREDENTIALS, scopes=['https://www.googleapis.com/auth/drive'])
+    drive_api = discovery.build('drive', 'v3', credentials=creds)
+    drive_client = drive_api.files()
 
+    if len(name) == 0:
+        name = zipfile
+
+    file_metadata = {'name': name, 'parents':["1bYXU5TwT_jvmuygkBbBy2r-BN7JUBHX5"]}
+    from googleapiclient.http import MediaFileUpload
+
+    media = MediaFileUpload(zipfile,
+                            mimetype='application/zip')
+
+    create_kwargs = {
+        'body': file_metadata,
+        'media_body': media,
+        'fields': 'id'
+    }
+
+    file = drive_client.create(**create_kwargs).execute()
+    print( 'File ID: '  +  file.get('id'))
 
