@@ -1,16 +1,47 @@
+import copy
+import numpy as np
+import os
+import pandas as pd
+import tensorflow as tf
+
+from data.preparer import *
+from datetime import datetime
+from google.oauth2 import service_account
+from googleapiclient import discovery
+from modeler import Modeler
 from sklearn.feature_extraction.text import CountVectorizer
 from snorkel.analysis import metric_score
 from snorkel.labeling import filter_unlabeled_dataframe
 from snorkel.utils import preds_to_probs
-import tensorflow as tf
-import numpy as np
-
-from google.oauth2 import service_account
-from googleapiclient import discovery
-
+from tensorflow.keras.layers import Bidirectional
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import Embedding
+from tensorflow.keras.layers import LSTM
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, Embedding, LSTM, Bidirectional
 
+stat_history = pd.DataFrame()
+modeler = None
+
+def load_dataset(task: str, DELIMITER='#'):
+    set_seeds()
+    if task == "Amazon":
+        df_train, df_dev, df_valid, df_test, df_test_heldout = load_amazon_dataset(delimiter=DELIMITER)
+
+    elif task =="Youtube":
+        df_train, df_dev, df_valid, df_test, df_test_heldout = load_youtube_dataset(delimiter=DELIMITER)
+
+    elif task == "Film":
+        df_train, df_dev, df_valid, df_test, df_test_heldout = load_film_dataset()
+
+    elif (task == "News") or (task == "Debug"):
+        df_train, df_dev, df_valid, df_test, df_test_heldout = load_news_dataset()
+
+    global modeler
+    modeler = Modeler(df_train, df_dev, df_valid, df_test, df_test_heldout)
+    update_stats({}, "begin")
+
+    return (df_train, df_dev, df_valid, df_test)
 
 def set_seeds():
     # set all random seeds
@@ -22,33 +53,6 @@ def set_seeds():
     tf.random.set_seed(123)
     np_seed(123)
     py_seed(123)
-
-
-def get_keras_bilstm(vocab_size = 20000, output_dim=2, maxlen=100):
-    set_seeds()
-    
-    # cut texts after this number of words
-    # (among top max_features most common words)
-
-    model = Sequential()
-    model.add(Embedding(maxlen, 128, input_length=maxlen))
-    model.add(Bidirectional(LSTM(64)))
-    model.add(Dropout(0.5))
-    if output_dim == 1:
-        loss = "binary_crossentropy"
-        activation = tf.nn.sigmoid
-    else:
-        loss = "categorical_crossentropy"
-        activation = tf.math.softmax
-    dense = tf.keras.layers.Dense(
-        units=output_dim,
-        activation=activation,
-        kernel_regularizer=tf.keras.regularizers.l2(0.001),
-    )
-    model.add(dense)
-    # try using different optimizers and different optimizer configs
-    model.compile('adam', 'binary_crossentropy', metrics=['accuracy'])
-    return model
 
 
 def get_keras_logreg(input_dim, output_dim=2):
@@ -79,22 +83,19 @@ def get_keras_early_stopping(patience=10, monitor="val_accuracy"):
     )
 
 
-def train_model(label_model, df_train, df_valid, df_test, L_train):
-    # Train a model on top
-
+def train_model(label_model, L_train):
     probs_train = label_model.predict_proba(L=L_train)
-
     df_train_filtered, probs_train_filtered = filter_unlabeled_dataframe(
-        X=df_train, y=probs_train, L=L_train
+        X=modeler.df_train, y=probs_train, L=L_train
     )
-    print("{} out of {} examples used for training data".format(len(df_train_filtered), len(df_train)))
+    print("{} out of {} examples used for training data".format(len(df_train_filtered), len(modeler.df_train)))
 
-    return train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df_test)
+    return train_model_from_probs(df_train_filtered, probs_train_filtered, modeler.df_valid, modeler.df_test)
 
 def train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df_test):
     set_seeds()
     
-    vectorizer = CountVectorizer(ngram_range=(1, 2))
+    vectorizer = modeler.vectorizer
     X_train = vectorizer.fit_transform(df_train_filtered.text.tolist())
 
     X_valid = vectorizer.transform(df_valid["text"].tolist())
@@ -115,34 +116,98 @@ def train_model_from_probs(df_train_filtered, probs_train_filtered, df_valid, df
         verbose=0,
     )
 
+    modeler.keras_model = keras_model
+
     preds_test = keras_model.predict(x=X_test).argmax(axis=1)
-    test_acc = metric_score(golds=Y_test, preds=preds_test, metric="accuracy")
-    print(f"Test Accuracy: {test_acc * 100:.1f}%")
-    test_f1 = metric_score(golds=Y_test, preds=preds_test, metric="f1")
-    print(f"Test F1: {test_f1 * 100:.1f}%")
-    test_prec = metric_score(golds=Y_test, preds=preds_test, metric="precision")
-    print(f"Test Precision: {test_f1 * 100:.1f}%")
-    test_recall = metric_score(golds=Y_test, preds=preds_test, metric="recall")
-    print(f"Test Recall: {test_f1 * 100:.1f}%")
 
-    return {
-        "test_acc": test_acc, 
-        "test_f1": test_f1, 
-        "test_precision": test_prec, 
-        "test_recall": test_recall,
-        "model": "logreg"
-    }
+    stats = modeler.get_stats(modeler.Y_test, preds_test)
 
-def upload_data(zipfile, name=""):
-    GOOGLE_APPLICATION_CREDENTIALS="../data/credentials.json"
+    update_stats({**stats, "data": "test"}, "train_model")
+
+    return stats
+
+def update_stats(new_stats_dict: dict, action: str, label_model=None, applier=None):
+    if applier is not None:
+        modeler.L_heldout = applier.apply(df=modeler.df_heldout)
+    if label_model is not None:
+        modeler.label_model = label_model
+    global stat_history
+    new_stats_dict = copy.deepcopy(new_stats_dict)
+    
+    new_stats_dict.update({
+        "time": datetime.now(), 
+        "action": action
+    })
+    stat_history = stat_history.append(new_stats_dict, ignore_index=True)
+
+    if action=="train_model":
+        heldout_stats = heldout_stats = modeler.get_heldout_lr_stats()
+        if len(heldout_stats) > 0:
+            stat_history = stat_history.append({
+                "action": "heldout_test_LR_stats",
+                "time": datetime.now(),
+                "data": "heldout",
+                **heldout_stats
+            }, ignore_index=True)
+    elif (action=="stats"):
+        heldout_stats = modeler.get_heldout_stats()
+        if len(heldout_stats) > 0:
+            stat_history = stat_history.append({
+                "action": "heldout_test_stats",
+                "time": datetime.now(), 
+                "data": "heldout",
+                **heldout_stats
+            }, ignore_index=True)
+
+
+
+def save_model(dirname):
+    update_stats({"dirname": dirname}, "save_model")
+    try:
+        os.mkdir(dirname)
+    except FileExistsError:
+        pass
+    try:
+        os.mkdir(dirname)
+    except FileExistsError:
+        pass
+
+    modeler.save(dirname)
+
+    global stat_history
+    stat_history["time_delta"] = stat_history["time"] - stat_history["time"].iloc[0]
+    stat_history.to_csv(os.path.join(dirname, "statistics_history.csv"))
+
+def upload_stats(stats_file, file_name): 
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+
+    GOOGLE_APPLICATION_CREDENTIALS=os.path.join(dir_path, "data/credentials.json")
     creds = credentials = service_account.Credentials.from_service_account_file(GOOGLE_APPLICATION_CREDENTIALS, scopes=['https://www.googleapis.com/auth/drive'])
     drive_api = discovery.build('drive', 'v3', credentials=creds)
     drive_client = drive_api.files()
 
-    if len(name) == 0:
-        name = zipfile
+    file_metadata = {'name': file_name, 'parents':["1bYXU5TwT_jvmuygkBbBy2r-BN7JUBHX5"]}
+    from googleapiclient.http import MediaFileUpload
 
-    file_metadata = {'name': name, 'parents':["1bYXU5TwT_jvmuygkBbBy2r-BN7JUBHX5"]}
+    media = MediaFileUpload(stats_file,
+                            mimetype='text/csv')
+
+    create_kwargs = {
+        'body': file_metadata,
+        'media_body': media,
+        'fields': 'id'
+    }
+
+    file = drive_client.create(**create_kwargs).execute()
+
+def upload_data(zipfile):
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    GOOGLE_APPLICATION_CREDENTIALS=os.path.join(dir_path, "data/credentials.json")
+    creds = credentials = service_account.Credentials.from_service_account_file(GOOGLE_APPLICATION_CREDENTIALS, scopes=['https://www.googleapis.com/auth/drive'])
+    drive_api = discovery.build('drive', 'v3', credentials=creds)
+    drive_client = drive_api.files()
+
+    file_metadata = {'name': zipfile, 'parents':["1bYXU5TwT_jvmuygkBbBy2r-BN7JUBHX5"]}
     from googleapiclient.http import MediaFileUpload
 
     media = MediaFileUpload(zipfile,
@@ -156,4 +221,3 @@ def upload_data(zipfile, name=""):
 
     file = drive_client.create(**create_kwargs).execute()
     print( 'File ID: '  +  file.get('id'))
-
