@@ -20,6 +20,8 @@ from tensorflow.keras.layers import Embedding
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.models import Sequential
 
+import shutil
+
 stat_history = pd.DataFrame()
 modeler = None
 
@@ -39,7 +41,7 @@ def load_dataset(task: str, DELIMITER='#'):
 
     global modeler
     modeler = Modeler(df_train, df_dev, df_valid, df_test, df_test_heldout)
-    update_stats({}, "begin")
+    update_stats({}, "load_data")
 
     return (df_train, df_dev, df_valid, df_test)
 
@@ -161,7 +163,11 @@ def update_stats(new_stats_dict: dict, action: str, label_model=None, applier=No
 
 
 
-def save_model(dirname):
+def save_model(USER_ID, TOOL, TASK):
+    dirname = str.lower(TOOL + "_" + TASK)
+    experiment_id = "_".join([TOOL, TASK, USER_ID, str(datetime.now())])
+
+
     update_stats({"dirname": dirname}, "save_model")
     try:
         os.mkdir(dirname)
@@ -176,17 +182,25 @@ def save_model(dirname):
 
     global stat_history
     stat_history["time_delta"] = stat_history["time"] - stat_history["time"].iloc[0]
+    stat_history["user"] = USER_ID
+    stat_history["tool"] = TOOL
+    stat_history["task"] = TASK   
     stat_history.to_csv(os.path.join(dirname, "statistics_history.csv"))
 
-def upload_stats(stats_file, file_name): 
-    dir_path = os.path.dirname(os.path.realpath(__file__))
 
-    GOOGLE_APPLICATION_CREDENTIALS=os.path.join(dir_path, "data/credentials.json")
+    upload_data(dirname, experiment_id)
+    upload_stats(dirname, experiment_id)
+
+def upload_stats(dirname, experiment_id): 
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+
+    GOOGLE_APPLICATION_CREDENTIALS=os.path.join(cur_path, "data/credentials.json")
     creds = credentials = service_account.Credentials.from_service_account_file(GOOGLE_APPLICATION_CREDENTIALS, scopes=['https://www.googleapis.com/auth/drive'])
     drive_api = discovery.build('drive', 'v3', credentials=creds)
     drive_client = drive_api.files()
 
-    file_metadata = {'name': file_name, 'parents':["1bYXU5TwT_jvmuygkBbBy2r-BN7JUBHX5"]}
+    stats_file = dirname + "/statistics_history.csv"
+    file_metadata = {'name': experiment_id + '.csv', 'parents':["1bYXU5TwT_jvmuygkBbBy2r-BN7JUBHX5"]}
     from googleapiclient.http import MediaFileUpload
 
     media = MediaFileUpload(stats_file,
@@ -200,9 +214,12 @@ def upload_stats(stats_file, file_name):
 
     file = drive_client.create(**create_kwargs).execute()
 
-def upload_data(zipfile):
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    GOOGLE_APPLICATION_CREDENTIALS=os.path.join(dir_path, "data/credentials.json")
+def upload_data(dirname, experiment_id):
+    zipfile = experiment_id + '.zip'
+    shutil.make_archive(experiment_id, "zip", dirname)
+    cur_path = os.path.dirname(os.path.realpath(__file__))
+
+    GOOGLE_APPLICATION_CREDENTIALS=os.path.join(cur_path, "data/credentials.json")
     creds = credentials = service_account.Credentials.from_service_account_file(GOOGLE_APPLICATION_CREDENTIALS, scopes=['https://www.googleapis.com/auth/drive'])
     drive_api = discovery.build('drive', 'v3', credentials=creds)
     drive_client = drive_api.files()
